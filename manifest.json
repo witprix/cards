@@ -7,7 +7,7 @@
   "theme_color": "#1e293b",
   "icons": [
     {
-      "src": "ri--lock-star-line.png",
+      "src": "./ri--lock-star-line.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
