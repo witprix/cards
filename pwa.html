@@ -2,15 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Added viewport-fit=cover for iPhone 15 Pro / Dynamic Island / Safe Areas -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Vault Pro - Complete Secure Tracker</title>
+    
+    <!-- PWA Meta Tags for iOS / Android -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Vault Pro">
+    <meta name="theme-color" content="#1e293b">
+    <link rel="apple-touch-icon" id="apple-icon" href="">
+    <link rel="manifest" id="pwa-manifest" href="">
+
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <style>
         :root { --primary: #6366f1; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --secondary: #1e293b; --bg: #f8fafc; }
         
         * { box-sizing: border-box; }
         
-        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); margin: 0; padding-bottom: 120px; color: #334155; overflow-x: hidden; }
+        /* Added safe-area-inset for modern notch/island phones */
+        body { 
+            font-family: 'Inter', system-ui, sans-serif; 
+            background: var(--bg); 
+            margin: 0; 
+            padding-bottom: calc(120px + env(safe-area-inset-bottom)); 
+            color: #334155; 
+            overflow-x: hidden; 
+        }
         
         #pin-overlay { position: fixed; inset: 0; background: var(--secondary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
         .pin-box { background: #1e293b; border: 1px solid #334155; border-radius: 24px; padding: 30px; text-align: center; width: 320px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
@@ -19,7 +37,12 @@
         #recovery-display { display: none; background: #0f172a; padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px dashed var(--success); }
         .code-text { font-family: monospace; color: var(--success); font-weight: bold; font-size: 14px; word-break: break-all; }
 
-        .top-dash { position: sticky; top: 0; z-index: 100; background: var(--secondary); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+        /* Dynamic Island / Top Notch Safe Area */
+        .top-dash { 
+            position: sticky; top: 0; z-index: 100; background: var(--secondary); color: white; 
+            padding: max(16px, env(safe-area-inset-top)) 20px 16px; 
+            display: flex; justify-content: space-between; align-items: center; 
+        }
         
         .search-container { padding: 15px 20px 5px; max-width: 440px; margin: 0 auto; }
         .search-wrapper { position: relative; background: white; border: 1.5px solid #e2e8f0; border-radius: 14px; display: flex; align-items: center; padding: 0 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
@@ -51,8 +74,8 @@
         
         .input-group-card { display: flex; align-items: center; width: 100%; margin-bottom: 6px; }
         
-        /* Fixed: Scaled CC font size & letter-spacing for portrait mode */
-        .v-cc { font-size: 17px !important; letter-spacing: 1px !important; width: 100%; min-width: 0; flex: 1; }
+        /* Fixed: Responsive clamp to prevent overlap on narrow mobile screens */
+        .v-cc { font-size: clamp(14px, 4vw, 17px) !important; letter-spacing: 1px !important; width: 100%; min-width: 0; flex: 1; }
         
         .card-bottom { display: flex; justify-content: space-between; align-items: flex-end; width: 75%; }
         .card-label { font-size: 8px; color: rgba(255,255,255,0.7); text-transform: uppercase; margin-bottom: 2px; font-family: 'Inter', sans-serif; letter-spacing: 1px;}
@@ -76,13 +99,14 @@
         .physical-card .toggle-btn { color: rgba(255,255,255,0.7); }
         .physical-card .copy-btn { color: rgba(255,255,255,0.9); }
         
+        /* Bottom swipe bar Safe Area adjustments */
         .bottom-actions { 
             position: fixed; 
             bottom: 0; 
             left: 0; 
             width: 100%; 
             background: white; 
-            padding: 12px 20px 25px; 
+            padding: 12px 20px max(25px, env(safe-area-inset-bottom)); 
             display: flex; 
             justify-content: space-evenly; 
             align-items: center; 
@@ -231,6 +255,16 @@
         }
     }
 
+    // ---------------- DEBOUNCE PERFORMANCE FIX ----------------
+    // This prevents the UI from freezing by waiting until typing pauses before heavy encryption runs
+    let saveTimeout = null;
+    function debouncedSave() {
+        if(saveTimeout) clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            save();
+        }, 600); // Wait 600ms after last keystroke to run heavy encryption
+    }
+
     // ---------------- INACTIVITY TIMER & AUTO-LOCK ----------------
     function resetInactivityTimer() {
         clearTimeout(inactivityTimer);
@@ -330,7 +364,6 @@
         const today = new Date();
         alertBadge.style.display = "none";
 
-        // Expiry check
         if (data.exp && data.exp.length === 5) {
             const [m, y] = data.exp.split('/');
             const expDate = new Date(2000 + parseInt(y), parseInt(m), 0);
@@ -342,7 +375,6 @@
             }
         }
 
-        // Billing due check
         if (data.due) {
             const dueDay = parseInt(data.due);
             const currentDay = today.getDate();
@@ -374,6 +406,7 @@
     }
 
     // ---------------- CARD DOM RENDERER ----------------
+    // Swapped save() with debouncedSave() to fix typing lag
     function addNew(data = {}) {
         const gridLetters = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P'];
         const cardCount = document.querySelectorAll('.swipe-item').length;
@@ -391,7 +424,7 @@
             gridHTML += `
                 <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; text-align: center; padding: 6px 4px;">
                     <label style="margin-bottom: 2px; color: var(--primary); font-size: 11px;">${l}</label>
-                    <input type="password" class="v-grid-${l}" inputmode="numeric" maxlength="2" value="${data['grid'+l] || ''}" oninput="autoTab(this); save();" style="padding: 2px; text-align: center; font-size: 16px; width: 100%; box-sizing: border-box; font-weight: 700; letter-spacing: 1px;">
+                    <input type="password" class="v-grid-${l}" inputmode="numeric" maxlength="2" value="${data['grid'+l] || ''}" oninput="autoTab(this); debouncedSave();" style="padding: 2px; text-align: center; font-size: 16px; width: 100%; box-sizing: border-box; font-weight: 700; letter-spacing: 1px;">
                 </div>
             `;
         });
@@ -403,13 +436,13 @@
             <div class="physical-card" style="background: ${assignedGradient}" onclick="handleCardClick(event, this)">
                 <div class="card-alert-badge"></div>
                 <button class="share-btn" onclick="shareCardData(event, this)"><i class="material-icons-round">share</i></button>
-                <button class="delete-btn" onclick="if(confirm('Delete this card?')){this.closest('.swipe-item').remove(); save();}">×</button>
+                <button class="delete-btn" onclick="if(confirm('Delete this card?')){this.closest('.swipe-item').remove(); debouncedSave();}">×</button>
                 
-                <input type="text" class="v-bank" placeholder="BANK NAME" value="${data.bank || ''}" oninput="triggerBankGrid(this); filterCards(); save();">
+                <input type="text" class="v-bank" placeholder="BANK NAME" value="${data.bank || ''}" oninput="triggerBankGrid(this); filterCards(); debouncedSave();">
                 <i class="material-icons-round chip-icon">contactless</i>
                 
                 <div class="input-group-card">
-                    <input type="password" class="v-cc" inputmode="numeric" maxlength="19" placeholder="XXXX XXXX XXXX XXXX" value="${data.cc || ''}" oninput="formatCC(this); filterCards(); save();">
+                    <input type="password" class="v-cc" inputmode="numeric" maxlength="19" placeholder="XXXX XXXX XXXX XXXX" value="${data.cc || ''}" oninput="formatCC(this); filterCards(); debouncedSave();">
                     <div class="toggle-btn" onclick="toggleVis(this)"><i class="material-icons-round">visibility_off</i></div>
                     <div class="copy-btn" onclick="copyToClipboard(event, this.parentElement.querySelector('input').value, 'Card Number')"><i class="material-icons-round">content_copy</i></div>
                 </div>
@@ -418,14 +451,14 @@
                     <div>
                         <div class="card-label">VALID THRU</div>
                         <div style="display:flex; align-items:center;">
-                            <input type="text" class="v-exp" inputmode="numeric" placeholder="MM/YY" maxlength="5" value="${data.exp || ''}" oninput="formatExp(this); autoTab(this); save()">
+                            <input type="text" class="v-exp" inputmode="numeric" placeholder="MM/YY" maxlength="5" value="${data.exp || ''}" oninput="formatExp(this); autoTab(this); debouncedSave()">
                             <div class="copy-btn" onclick="copyToClipboard(event, this.parentElement.querySelector('input').value, 'Expiry')"><i class="material-icons-round" style="font-size:13px">content_copy</i></div>
                         </div>
                     </div>
                     <div>
                         <div class="card-label">CVV</div>
                         <div class="input-group-card" style="margin-bottom: 0;">
-                            <input type="password" class="v-cvv" inputmode="numeric" placeholder="***" maxlength="4" value="${data.cvv || ''}" oninput="autoTab(this); save()">
+                            <input type="password" class="v-cvv" inputmode="numeric" placeholder="***" maxlength="4" value="${data.cvv || ''}" oninput="autoTab(this); debouncedSave()">
                             <div class="toggle-btn" onclick="toggleVis(this)"><i class="material-icons-round">visibility_off</i></div>
                             <div class="copy-btn" onclick="copyToClipboard(event, this.parentElement.querySelector('input').value, 'CVV')"><i class="material-icons-round" style="font-size:13px">content_copy</i></div>
                         </div>
@@ -438,22 +471,22 @@
             <div class="details-card">
                 <div class="section-label">Netbanking</div>
                 <div class="input-group">
-                    <input type="text" class="v-user" placeholder="Username" value="${data.user || ''}" oninput="save()">
+                    <input type="text" class="v-user" placeholder="Username" value="${data.user || ''}" oninput="debouncedSave()">
                     <div class="copy-btn" onclick="copyToClipboard(event, this.parentElement.querySelector('input').value, 'Username')"><i class="material-icons-round">content_copy</i></div>
                 </div>
                 <div class="input-group">
-                    <input type="password" class="v-pass" placeholder="Password" value="${data.pass || ''}" oninput="save()">
+                    <input type="password" class="v-pass" placeholder="Password" value="${data.pass || ''}" oninput="debouncedSave()">
                     <div class="toggle-btn" onclick="toggleVis(this)"><i class="material-icons-round">visibility_off</i></div>
                     <div class="copy-btn" onclick="copyToClipboard(event, this.parentElement.querySelector('input').value, 'Password')"><i class="material-icons-round">content_copy</i></div>
                 </div>
 
                 <div class="section-label">Security Q&A</div>
                 <div class="input-group">
-                    <input type="password" class="v-sq" placeholder="Security Question" value="${data.sq || ''}" oninput="save()">
+                    <input type="password" class="v-sq" placeholder="Security Question" value="${data.sq || ''}" oninput="debouncedSave()">
                     <div class="toggle-btn" onclick="toggleVis(this)"><i class="material-icons-round">visibility_off</i></div>
                 </div>
                 <div class="input-group">
-                    <input type="password" class="v-sa" placeholder="Security Answer" value="${data.sa || ''}" oninput="save()">
+                    <input type="password" class="v-sa" placeholder="Security Answer" value="${data.sa || ''}" oninput="debouncedSave()">
                     <div class="toggle-btn" onclick="toggleVis(this)"><i class="material-icons-round">visibility_off</i></div>
                 </div>
 
@@ -463,15 +496,15 @@
                 <div class="date-grid">
                     <div>
                         <label>Anniversary</label>
-                        <div class="input-group"><input type="date" class="v-ann" value="${data.ann || ''}" oninput="save()"></div>
+                        <div class="input-group"><input type="date" class="v-ann" value="${data.ann || ''}" oninput="debouncedSave()"></div>
                     </div>
                     <div>
                         <label>Billing Day</label>
-                        <div class="input-group"><input type="text" class="v-bill" inputmode="numeric" maxlength="2" placeholder="Day" value="${data.bill || ''}" oninput="autoTab(this); save()"></div>
+                        <div class="input-group"><input type="text" class="v-bill" inputmode="numeric" maxlength="2" placeholder="Day" value="${data.bill || ''}" oninput="autoTab(this); debouncedSave()"></div>
                     </div>
                     <div>
                         <label>Due Day</label>
-                        <div class="input-group"><input type="text" class="v-due" inputmode="numeric" maxlength="2" placeholder="Day" value="${data.due || ''}" oninput="autoTab(this); save()"></div>
+                        <div class="input-group"><input type="text" class="v-due" inputmode="numeric" maxlength="2" placeholder="Day" value="${data.due || ''}" oninput="autoTab(this); debouncedSave()"></div>
                     </div>
                 </div>
             </div>
@@ -612,7 +645,6 @@
         let parts = v.match(/.{1,4}/g);
         if (parts) input.value = parts.join(' ');
         
-        // Brand update
         const cardEl = input.closest('.swipe-item');
         cardEl.querySelector('.card-brand-badge').innerText = detectCardBrand(v);
 
@@ -740,6 +772,45 @@
         };
         reader.readAsText(event.target.files[0]);
     }
+
+    // ---------------- SINGLE-FILE PWA INJECTION ----------------
+    // Generates a base64 app icon, manifest, and service worker so this can remain a single HTML file
+    (function initPWA() {
+        const appName = "Vault Pro";
+        const themeColor = "#1e293b";
+        
+        // Base64 SVG Icon (Shield with a 'V')
+        const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="${themeColor}"/><text x="256" y="340" font-size="280" fill="#6366f1" text-anchor="middle" font-family="sans-serif" font-weight="bold">V</text></svg>`;
+        const iconDataUrl = "data:image/svg+xml;base64," + btoa(svgIcon);
+        
+        document.getElementById('apple-icon').href = iconDataUrl;
+
+        // Generate and inject PWA Manifest
+        const manifest = {
+            name: appName,
+            short_name: "Vault",
+            display: "standalone",
+            start_url: ".",
+            background_color: themeColor,
+            theme_color: themeColor,
+            icons: [{ src: iconDataUrl, sizes: "512x512", type: "image/svg+xml" }]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+        document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
+
+        // Generate and register an inline Service Worker for offline support/installation
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('install', (e) => { self.skipWaiting(); });
+                self.addEventListener('activate', (e) => { self.clients.claim(); });
+                self.addEventListener('fetch', (e) => {
+                    e.respondWith(fetch(e.request).catch(() => new Response('Offline Mode Active', { status: 200 })));
+                });
+            `;
+            const swBlob = new Blob([swCode], { type: 'application/javascript' });
+            navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(err => console.log('PWA SW Registration failed', err));
+        }
+    })();
 </script>
 </body>
 </html>
