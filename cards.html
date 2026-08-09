@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vault Pro - Complete Secure Tracker</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        :root { --primary: #6366f1; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --secondary: #1e293b; --bg: #f8fafc; }
+        
+        * { box-sizing: border-box; }
+        
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); margin: 0; padding-bottom: 120px; color: #334155; overflow-x: hidden; }
+        
+        #pin-overlay { position: fixed; inset: 0; background: var(--secondary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
+        .pin-box { background: #1e293b; border: 1px solid #334155; border-radius: 24px; padding: 30px; text-align: center; width: 320px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        .pin-input { background: none; border: none; border-bottom: 2px solid var(--primary); color: white; font-size: 32px; width: 120px; text-align: center; letter-spacing: 8px; outline: none; margin: 20px 0; -webkit-text-security: disc; }
+        
+        #recovery-display { display: none; background: #0f172a; padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px dashed var(--success); }
+        .code-text { font-family: monospace; color: var(--success); font-weight: bold; font-size: 14px; word-break: break-all; }
+
+        .top-dash { position: sticky; top: 0; z-index: 100; background: var(--secondary); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .search-container { padding: 15px 20px 5px; max-width: 440px; margin: 0 auto; }
+        .search-wrapper { position: relative; background: white; border: 1.5px solid #e2e8f0; border-radius: 14px; display: flex; align-items: center; padding: 0 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .search-wrapper i { color: #94a3b8; margin-right: 8px; }
+        .search-bar { width: 100%; border: none; padding: 12px 0; font-size: 15px; font-weight: 600; outline: none; color: #334155; background: transparent; }
+
+        .container { max-width: 440px; margin: 0 auto; padding: 0 20px; }
+        #vaultList { display: flex; flex-direction: column; gap: 20px; padding-top: 10px; }
+        .swipe-item { width: 100%; scroll-margin-top: 80px; }
+
+        .physical-card {
+            border-radius: 16px; padding: 20px 16px; position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.1); margin-bottom: 5px; color: white; height: 220px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+        }
+        .physical-card::after {
+            content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%); transform: skewX(-25deg); animation: shine 6s infinite; pointer-events: none;
+        }
+        @keyframes shine { 0% { left: -100%; } 20% { left: 200%; } 100% { left: 200%; } }
+        @media (prefers-reduced-motion: reduce) {
+            .physical-card::after { animation: none; }
+        }
+
+        .physical-card input { background: transparent; border: none; color: white; outline: none; font-family: monospace; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+        .physical-card input::placeholder { color: rgba(255,255,255,0.4); }
+        
+        .card-brand-badge { position: absolute; bottom: 15px; right: 16px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 6px; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); }
+        .card-alert-badge { position: absolute; top: 18px; left: 16px; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px; display: none; }
+        .alert-due { background: var(--warning); color: #000; }
+        .alert-expired { background: var(--danger); color: #fff; }
+
+        .v-bank { font-size: 16px; font-weight: 700; font-family: 'Inter', sans-serif; text-transform: uppercase; width: 60%; border-bottom: 1px solid rgba(255,255,255,0.2) !important; padding-bottom: 3px; margin-bottom: 2px; margin-top: 12px; }
+        .chip-icon { font-size: 30px; color: #fbbf24; transform: rotate(90deg); margin-bottom: 0px; opacity: 0.9; }
+        
+        .input-group-card { display: flex; align-items: center; width: 100%; margin-bottom: 6px; }
+        
+        .v-cc { font-size: 17px !important; letter-spacing: 1px !important; width: 100%; min-width: 0; flex: 1; }
+        
+        .card-bottom { display: flex; justify-content: space-between; align-items: flex-end; width: 75%; }
+        .card-label { font-size: 8px; color: rgba(255,255,255,0.7); text-transform: uppercase; margin-bottom: 2px; font-family: 'Inter', sans-serif; letter-spacing: 1px;}
+        .v-exp { width: 55px; font-size: 14px; letter-spacing: 0.5px; }
+        .v-cvv { width: 40px; font-size: 14px; letter-spacing: 1px; }
+
+        .delete-btn { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .share-btn { position: absolute; top: 16px; right: 48px; background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .share-btn i { font-size: 15px; }
+
+        .copy-btn { margin-left: 4px; cursor: pointer; opacity: 0.85; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .copy-btn:hover { opacity: 1; }
+        .copy-btn i { font-size: 16px; }
+
+        .details-card { display: none; background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; margin-top: 15px; margin-bottom: 15px; }
+        .section-label { font-size: 11px; font-weight: 800; color: var(--primary); text-transform: uppercase; margin: 15px 0 10px; display: flex; align-items: center; gap: 5px; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; }
+        .input-group { position: relative; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; display: flex; align-items: center; margin-bottom: 10px; padding-right: 8px; }
+        .input-group input { width: 100%; border: none; padding: 12px; font-size: 14px; font-weight: 600; outline: none; background: transparent; color: #334155; }
+        
+        .toggle-btn { padding-right: 4px; color: #94a3b8; cursor: pointer; flex-shrink: 0; }
+        .physical-card .toggle-btn { color: rgba(255,255,255,0.7); }
+        .physical-card .copy-btn { color: rgba(255,255,255,0.9); }
+
+        input:focus-visible, .toggle-btn:focus-visible, .copy-btn:focus-visible, .delete-btn:focus-visible, .share-btn:focus-visible, .action-item:focus-visible, .btn-add-main:focus-visible {
+            outline: 2px solid #93c5fd; outline-offset: 2px;
+        }
+        
+        .bottom-actions { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            background: white; 
+            padding: 12px 20px calc(25px + env(safe-area-inset-bottom)); 
+            display: flex; 
+            justify-content: space-evenly; 
+            align-items: center; 
+            border-top: 1px solid #e2e8f0; 
+            z-index: 100; 
+        }
+        .action-item {
+            flex: 1;
+            text-align: center;
+            font-size: 10px;
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            font-family: inherit;
+        }
+        .btn-add-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .btn-add-main { 
+            background: var(--primary); 
+            color: white; 
+            width: 60px; 
+            height: 60px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin-top: -35px; 
+            border: 5px solid white; 
+            cursor: pointer; 
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3); 
+        }
+
+        .date-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
+        label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        .hidden { display: none !important; }
+        .tap-hint { text-align: center; font-size: 10px; color: #94a3b8; font-weight: 600; letter-spacing: 1px; margin-top: 5px; margin-bottom: 5px; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
+        .empty-state i { font-size: 48px; opacity: 0.5; }
+        .empty-state p { font-size: 13px; font-weight: 600; margin-top: 8px; }
+
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: white; padding: 10px 20px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 10000; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+
+<div id="toast" role="status" aria-live="polite">Copied to Clipboard!</div>
+
+<div id="pin-overlay">
+    <div class="pin-box">
+        <i class="material-icons-round" style="font-size: 48px; color: var(--primary);">lock_person</i>
+        <h2 id="pin-title" style="margin: 10px 0 0;">Enter PIN</h2>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" id="pin-field" maxlength="4" class="pin-input" aria-label="4 digit PIN" autofocus>
+        <div id="recovery-display">
+            <p style="font-size: 11px; color: var(--success); margin: 0 0 10px;">SAVE THIS RECOVERY CODE!</p>
+            <div class="code-text" id="recovery-code-val"></div>
+            <button onclick="unlockVault()" style="margin-top: 15px; background: var(--success); border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; width: 100%;">I'VE SAVED IT</button>
+        </div>
+        <div id="pin-actions"><a href="#" onclick="handleForgotPin()" style="color: #6366f1; font-size: 12px; text-decoration: none;">Forgot PIN?</a></div>
+    </div>
+</div>
+
+<div class="top-dash">
+    <div style="font-weight: bold; display: flex; align-items: center; gap: 8px;"><i class="material-icons-round">security</i> VAULT PRO</div>
+    <div onclick="lockApp()" style="cursor:pointer;" title="Lock Vault" role="button" tabindex="0" aria-label="Lock vault" onkeydown="if(event.key==='Enter')lockApp()"><i class="material-icons-round">logout</i></div>
+</div>
+
+<div class="search-container">
+    <div class="search-wrapper">
+        <i class="material-icons-round">search</i>
+        <input type="text" id="searchBar" class="search-bar" placeholder="Search by Bank or Card Number..." oninput="filterCards()" aria-label="Search cards">
+    </div>
+</div>
+
+<div class="container">
+    <div id="vaultList"></div>
+</div>
+
+<div class="bottom-actions">
+    <button class="action-item" onclick="document.getElementById('importFile').click()" aria-label="Restore backup">
+        <i class="material-icons-round" style="color:var(--danger)">backup</i>
+        <span>RESTORE</span>
+    </button>
+    <div class="btn-add-wrapper">
+        <button class="btn-add-main" onclick="addNew()" aria-label="Add new card">
+            <i class="material-icons-round" style="font-size:36px">add</i>
+        </button>
+    </div>
+    <button class="action-item" onclick="exportData()" aria-label="Backup vault">
+        <i class="material-icons-round" style="color:var(--success)">save_alt</i>
+        <span>BACKUP</span>
+    </button>
+</div>
+
+<input type="file" id="importFile" hidden onchange="importData(event)" accept=".json,application/json">
+
+<script>
+    const DB_KEY = "Vault_Pro_Encrypted_Data";
+    const PIN_HASH_KEY = "Vault_Master_Pin_Hash";
+    const REC_HASH_KEY = "Vault_Recovery_Key_Hash";
+    const FILE_NAME_KEY = "Vault_Saved_Filename";
+    
+    const bgGradients = [
+        'linear-gradient(135deg, #1e293b 0%, #334155 100%)', 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)', 
+        'linear-gradient(135deg, #059669 0%, #064e3b 100%)', 'linear-gradient(135deg, #be123c 0%, #881337 100%)', 
+        'linear-gradient(135deg, #b45309 0%, #78350f 100%)'  
+    ];
+
+    let MASTER_PIN_HASH = localStorage.getItem(PIN_HASH_KEY);
+    let RECOVERY_KEY_HASH = localStorage.getItem(REC_HASH_KEY);
+    let fileHandle = null;
+    let inactivityTimer = null;
+    let CURRENT_PIN = "";
+
+    // ---------------- SECURITY & ENCRYPTION ENGINE ----------------
+    // NOTE: The raw PIN is never persisted to localStorage — only a SHA-256
+    // hash is stored, used solely to verify a PIN attempt. The vault's AES
+    // key is derived fresh from the in-memory PIN each session, so anyone
+    // with access to localStorage cannot read the PIN and decrypt the vault.
+    async function hashValue(str) {
+        const enc = new TextEncoder().encode(str + '::VaultProIntegritySalt');
+        const buf = await crypto.subtle.digest('SHA-256', enc);
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function deriveKey(pin) {
+        const enc = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey']);
+        return crypto.subtle.deriveKey(
+            { name: 'PBKDF2', salt: enc.encode('VaultProSaltKey_2026'), iterations: 100000, hash: 'SHA-256' },
+            keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+        );
+    }
+
+    async function encryptPayload(data, pin) {
+        const key = await deriveKey(pin);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encoded = new TextEncoder().encode(JSON.stringify(data));
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+        return JSON.stringify({ iv: Array.from(iv), data: Array.from(new Uint8Array(encrypted)) });
+    }
+
+    async function decryptPayload(cipherText, pin) {
+        try {
+            const { iv, data } = JSON.parse(cipherText);
+            const key = await deriveKey(pin);
+            const decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: new Uint8Array(iv) },
+                key, new Uint8Array(data)
+            );
+            return JSON.parse(new TextDecoder().decode(decrypted));
+        } catch(e) {
+            return null;
+        }
+    }
+
+    // ---------------- INACTIVITY TIMER & AUTO-LOCK ----------------
+    function resetInactivityTimer() {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+            lockApp();
+        }, 3 * 60 * 1000); // Auto Lock after 3 Minutes of Inactivity
+    }
+
+    ['mousemove', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+        window.addEventListener(evt, resetInactivityTimer, true);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) lockApp();
+    });
+
+    function lockApp() {
+        CURRENT_PIN = "";
+        document.getElementById('vaultList').innerHTML = "";
+        document.getElementById('pin-field').value = "";
+        document.getElementById('pin-field').style.display = "";
+        document.getElementById('pin-actions').style.display = "";
+        document.getElementById('recovery-display').style.display = "none";
+        document.getElementById('pin-title').innerText = MASTER_PIN_HASH ? "Enter PIN" : "Create a PIN";
+        document.getElementById('pin-overlay').style.display = 'flex';
+        document.getElementById('pin-field').focus();
+    }
+
+    // ---------------- PIN & AUTHENTICATION FLOW ----------------
+    document.getElementById('pin-field').addEventListener('input', async function(e) {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        if(this.value.length === 4) {
+            if(!MASTER_PIN_HASH) {
+                CURRENT_PIN = this.value;
+                MASTER_PIN_HASH = await hashValue(this.value);
+                const rawRecovery = Array.from(crypto.getRandomValues(new Uint32Array(4))).map(n => n.toString(36)).join('-').toUpperCase();
+                RECOVERY_KEY_HASH = await hashValue(rawRecovery);
+                localStorage.setItem(PIN_HASH_KEY, MASTER_PIN_HASH);
+                localStorage.setItem(REC_HASH_KEY, RECOVERY_KEY_HASH);
+                showRecoveryFlow(rawRecovery);
+            } else {
+                const attemptHash = await hashValue(this.value);
+                if (attemptHash === MASTER_PIN_HASH) {
+                    CURRENT_PIN = this.value;
+                    unlockVault();
+                } else {
+                    alert("Wrong PIN");
+                    this.value = "";
+                }
+            }
+        }
+    });
+
+    function showRecoveryFlow(rawRecovery) {
+        document.getElementById('pin-title').innerText = "Security Setup";
+        document.getElementById('pin-field').style.display = "none";
+        document.getElementById('pin-actions').style.display = "none";
+        document.getElementById('recovery-code-val').innerText = rawRecovery;
+        document.getElementById('recovery-display').style.display = "block";
+    }
+
+    async function handleForgotPin() {
+        const input = prompt("Enter your 16-character Recovery Code:");
+        if (!input) return;
+        const attemptHash = await hashValue(input.toUpperCase());
+        if (attemptHash === RECOVERY_KEY_HASH) {
+            if (confirm("⚠️ This will permanently ERASE all saved vault data (cards, logins, notes) and let you set a new PIN. This cannot be undone. Continue?")) {
+                localStorage.removeItem(PIN_HASH_KEY);
+                localStorage.removeItem(REC_HASH_KEY);
+                localStorage.removeItem(DB_KEY);
+                alert("Vault reset. Reloading...");
+                location.reload();
+            }
+        } else {
+            alert("Invalid Code.");
+        }
+    }
+
+    async function unlockVault() {
+        document.getElementById('pin-overlay').style.display = 'none';
+        resetInactivityTimer();
+        await init();
+    }
+
+    async function init() {
+        const rawEncrypted = localStorage.getItem(DB_KEY);
+        let saved = [];
+        if (rawEncrypted) {
+            saved = await decryptPayload(rawEncrypted, CURRENT_PIN) || [];
+        }
+        const container = document.getElementById('vaultList');
+        container.innerHTML = "";
+        if(saved.length === 0) {
+            addNew(); 
+        } else {
+            saved.forEach(s => addNew(s));
+        }
+    }
+
+    // ---------------- CARD BRAND DETECTION & BADGES ----------------
+    function detectCardBrand(number) {
+        const clean = number.replace(/\s+/g, '');
+        if (/^4/.test(clean)) return 'VISA';
+        if (/^(5[1-5]|2[2-7])/.test(clean)) return 'MASTERCARD';
+        if (/^3[47]/.test(clean)) return 'AMEX';
+        if (/^(6011|65|64[4-9])/.test(clean)) return 'DISCOVER';
+        if (/^(60|6521|353|356)/.test(clean)) return 'RUPAY';
+        return 'CARD';
+    }
+
+    function checkAlertBadges(cardEl, data) {
+        const alertBadge = cardEl.querySelector('.card-alert-badge');
+        const today = new Date();
+        alertBadge.style.display = "none";
+
+        // Expiry check
+        if (data.exp && data.exp.length === 5) {
+            const [m, y] = data.exp.split('/');
+            const expDate = new Date(2000 + parseInt(y), parseInt(m), 0);
+            if (expDate < today) {
+                alertBadge.innerText = "EXPIRED";
+                alertBadge.className = "card-alert-badge alert-expired";
+                alertBadge.style.display = "block";
+                return;
+            }
+        }
+
+        // Billing due check
+        if (data.due) {
+            const dueDay = parseInt(data.due);
+            const currentDay = today.getDate();
+            if (dueDay >= currentDay && dueDay - currentDay <= 3) {
+                alertBadge.innerText = `DUE IN ${dueDay - currentDay} DAYS`;
+                alertBadge.className = "card-alert-badge alert-due";
+                alertBadge.style.display = "block";
+            }
+        }
+    }
+
+    // ---------------- CLIPBOARD HELPER ----------------
+    function copyToClipboard(event, value, label) {
+        event.stopPropagation();
+        if (!value) return;
+        const cleanVal = value.replace(/\s+/g, '');
+        navigator.clipboard.writeText(cleanVal).then(() => {
+            showToast(`${label} Copied! Auto-clears in 30s`);
+            setTimeout(() => {
+                // Only clear the clipboard if it still holds what we copied,
+                // so we don't wipe something else the user copied since.
+                navigator.clipboard.readText().then(current => {
+                    if (current === cleanVal) navigator.clipboard.writeText('');
+                }).catch(() => {});
+            }, 30000);
+        });
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2500);
+    }
+
+    // ---------------- CARD DOM RENDERER ----------------
+    function addNew(data = {}) {
+        const gridLetters = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P'];
+        const cardCount = document.querySelectorAll('.swipe-item').length;
+        const assignedGradient = bgGradients[cardCount % bgGradients.length];
+        
+        let gridHTML = `
+            <div class="grid-section-wrapper">
+                <div class="section-label" style="justify-content: space-between; display: flex;">
+                    <span style="display: flex; align-items: center; gap: 5px;"><i class="material-icons-round" style="font-size:14px">grid_on</i> Grid Values (A-P)</span>
+                    <div class="toggle-btn" onclick="toggleGrid(this)" role="button" tabindex="0" aria-label="Toggle grid visibility" style="padding:0; margin:0;"><i class="material-icons-round" style="font-size:20px">visibility_off</i></div>
+                </div>
+                <div class="grid-container" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 15px;">
+        `;
+        gridLetters.forEach(l => {
+            gridHTML += `
+                <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; text-align: center; padding: 6px 4px;">
+                    <label style="margin-bottom: 2px; color: var(--primary); font-size: 11px;">${l}</label>
+                    <input type="password" class="v-grid-${l}" inputmode="numeric" maxlength="2" value="${data['grid'+l] || ''}" aria-label="Grid value ${l}" oninput="autoTab(this); save();" style="padding: 2px; text-align: center; font-size: 16px; width: 100%; box-sizing: border-box; font-weight: 700; letter-spacing: 1px;">
+                </div>
+            `;
+        });
+        gridHTML += `</div></div>`;
+
+        const div = document.createElement('div');
+        div.className = "swipe-item";
+        div.innerHTML = `
+            <div class="physical-card" style="background: ${assignedGradient}" onclick="handleCardClick(event, this)">
+                <div class="card-alert-badge"></div>
+                <button class="share-btn" onclick="shareCardData(event, this)" aria-label="Share card"><i class="material-icons-round">share</i></button>
+                <button class="delete-btn" onclick="if(confirm('Delete this card?')){this.closest('.swipe-item').remove(); save(); showEmptyStateIfNeeded();}" aria-label="Delete card">×</button>
+                
+                <input type="text" class="v-bank" placeholder="BANK NAME" value="${data.bank || ''}" aria-label="Bank name" oninput="triggerBankGrid(this); filterCards(); save();">
+                <i class="material-icons-round chip-icon">contactless</i>
+                
+                <div class="input-group-card">
+                    <input type="password" class="v-cc" inputmode="numeric" maxlength="19" placeholder="XXXX XXXX XXXX XXXX" value="${data.cc || ''}" aria-label="Card number" oninput="formatCC(this); filterCards(); save();">
+                    <div class="toggle-btn" onclick="toggleVis(this)" role="button" tabindex="0" aria-label="Toggle card number visibility"><i class="material-icons-round">visibility_off</i></div>
+                    <div class="copy-btn" onclick="copyToClipboard(event, this.parentElement.querySelector('input').value, 'Card Number')" role="button" tabindex="0" aria-label="Copy card number"><i class="material-icons-round">content_copy</i></div>
+                </div>
+                
+                <div class="card-bottom">
+                    <div>
+                        <div class="card-label">VALID THRU</div>
+                        <div style="display:flex; align-items:center;">
+                            <input type="text" class="v-exp" inputmode="numeric" placeholder="MM/YY" maxlength="5" value="${data.exp || ''}" aria-label="Expiry date" oninput="formatExp(this); autoTab(this); save()">
+                            <div class="copy-btn" onclick="copyToClipboard(event, this.parentElement.querySelector('input').value, 'Expiry')" role="button" tabindex="0" aria-label="Copy expiry date"><i class="material-icons-round" style="font-size:13px">content_copy</i></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="card-label">CVV</div>
+                        <div class="input-group-card" style="margin-bottom: 0;">
+                            <input type="password" class="v-cvv" inputmode="numeric" maxlength="4" placeholder="***" value="${data.cvv || ''}" aria-label="CVV" oninput="autoTab(this); save()">
+                            <div class="toggle-btn" onclick="toggleVis(this)" role="button" tabindex="0" aria-label="Toggle CVV visibility"><i class="material-icons-round">visibility_off</i></div>
+                            <div class="copy-btn" onclick="copyToClipboard(event, this.parentElement.querySelector('input').value, 'CVV')" role="button" tabindex="0" aria-label="Copy CVV"><i class="material-icons-round" style="font-size:13px">content_copy</i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-brand-badge">${detectCardBrand(data.cc || '')}</div>
+            </div>
+            <div class="tap-hint">TAP CARD FOR EXTRA INFO</div>
+
+            <div class="details-card">
+                <div class="section-label">Netbanking</div>
+                <div class="input-group">
+                    <input type="text" class="v-user" placeholder="Username" value="${data.user || ''}" oninput="save()">
+                    <div class="copy-btn" onclick="copyToClipboard(event, this.parentElement.querySelector('input').value, 'Username')" role="button" tabindex="0" aria-label="Copy username"><i class="material-icons-round">content_copy</i></div>
+                </div>
+                <div class="input-group">
+                    <input type="password" class="v-pass" placeholder="Password" value="${data.pass || ''}" oninput="save()">
+                    <div class="toggle-btn" onclick="toggleVis(this)" role="button" tabindex="0" aria-label="Toggle password visibility"><i class="material-icons-round">visibility_off</i></div>
+                    <div class="copy-btn" onclick="copyToClipboard(event, this.parentElement.querySelector('input').value, 'Password')" role="button" tabindex="0" aria-label="Copy password"><i class="material-icons-round">content_copy</i></div>
+                </div>
+
+                <div class="section-label">Security Q&A</div>
+                <div class="input-group">
+                    <input type="password" class="v-sq" placeholder="Security Question" value="${data.sq || ''}" oninput="save()">
+                    <div class="toggle-btn" onclick="toggleVis(this)" role="button" tabindex="0" aria-label="Toggle security question visibility"><i class="material-icons-round">visibility_off</i></div>
+                </div>
+                <div class="input-group">
+                    <input type="password" class="v-sa" placeholder="Security Answer" value="${data.sa || ''}" oninput="save()">
+                    <div class="toggle-btn" onclick="toggleVis(this)" role="button" tabindex="0" aria-label="Toggle security answer visibility"><i class="material-icons-round">visibility_off</i></div>
+                </div>
+
+                ${gridHTML}
+
+                <div class="section-label">Card Management Dates</div>
+                <div class="date-grid">
+                    <div>
+                        <label>Anniversary</label>
+                        <div class="input-group"><input type="date" class="v-ann" value="${data.ann || ''}" oninput="save()"></div>
+                    </div>
+                    <div>
+                        <label>Billing Day</label>
+                        <div class="input-group"><input type="text" class="v-bill" inputmode="numeric" maxlength="2" placeholder="Day" value="${data.bill || ''}" oninput="autoTab(this); save()"></div>
+                    </div>
+                    <div>
+                        <label>Due Day</label>
+                        <div class="input-group"><input type="text" class="v-due" inputmode="numeric" maxlength="2" placeholder="Day" value="${data.due || ''}" oninput="autoTab(this); save()"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const container = document.getElementById('vaultList');
+        removeEmptyState();
+        
+        if (data && Object.keys(data).length > 0) {
+            container.appendChild(div);
+        } else {
+            container.prepend(div);
+            setTimeout(() => {
+                div.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                div.querySelector('.v-bank').focus();
+            }, 50);
+        }
+
+        triggerBankGrid(div.querySelector('.v-bank'));
+        checkAlertBadges(div, data);
+        document.getElementById('searchBar').value = "";
+    }
+
+    function removeEmptyState() {
+        const empty = document.querySelector('.empty-state');
+        if (empty) empty.remove();
+    }
+
+    function showEmptyStateIfNeeded() {
+        const container = document.getElementById('vaultList');
+        if (container.querySelectorAll('.swipe-item').length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="material-icons-round">credit_card_off</i><p>No cards yet — tap + to add one</p></div>`;
+        }
+    }
+
+    // ---------------- SEARCH, FILTER & INTERACTIONS ----------------
+    function filterCards() {
+        const query = document.getElementById('searchBar').value.toLowerCase().trim();
+        const items = document.querySelectorAll('.swipe-item');
+        items.forEach(item => {
+            const bankName = item.querySelector('.v-bank').value.toLowerCase();
+            const ccNumber = item.querySelector('.v-cc').value.toLowerCase();
+            if (bankName.includes(query) || ccNumber.includes(query)) {
+                item.style.display = "block";
+            } else {
+                item.style.display = "none";
+            }
+        });
+    }
+
+    function shareCardData(event, btn) {
+        event.stopPropagation();
+        const card = btn.closest('.swipe-item');
+        const bank = card.querySelector('.v-bank').value || "Card Details";
+        let cc = card.querySelector('.v-cc').value || "XXXX XXXX XXXX XXXX";
+        const exp = card.querySelector('.v-exp').value || "MM/YY";
+        
+        if (cc === "XXXX XXXX XXXX XXXX") {
+            alert("Please fill in card details before sharing.");
+            return;
+        }
+
+        const mode = prompt("Choose sharing platform:\n1. WhatsApp\n2. SMS", "1");
+        if (!mode) return;
+
+        const secureMask = confirm("Security Warning: Do you want to MASK your card number digits for safety?\n(Keeps only last 4 digits visible)");
+        if (secureMask) {
+            const rawDigits = cc.replace(/\s/g, '');
+            if (rawDigits.length >= 4) {
+                cc = "**** **** **** " + rawDigits.slice(-4);
+            }
+        }
+
+        const messageText = `💳 *${bank.toUpperCase()}*\nCard Number: ${cc}\nExpiry Date: ${exp}`;
+        const encodedText = encodeURIComponent(messageText);
+
+        if (mode === "1") {
+            window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
+        } else if (mode === "2") {
+            const smsSeparator = (navigator.userAgent.match(/iPhone|iPad|iPod/i)) ? '&' : '?';
+            window.open(`sms:${smsSeparator}body=${encodedText}`, '_blank');
+        }
+    }
+
+    function handleCardClick(event, cardEl) {
+        if (['INPUT', 'BUTTON', 'I'].includes(event.target.tagName) || 
+            event.target.classList.contains('toggle-btn') || 
+            event.target.closest('.copy-btn') || 
+            event.target.closest('.share-btn')) {
+            return; 
+        }
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+            document.activeElement.blur();
+        }
+
+        const swipeItem = cardEl.closest('.swipe-item');
+        const detailsCard = swipeItem.querySelector('.details-card');
+        
+        if (detailsCard.style.display === 'block') {
+            detailsCard.style.display = 'none'; 
+        } else {
+            if (confirm("Do you want to see detailed info (Netbanking, Security Q&A, Dates)?")) {
+                detailsCard.style.display = 'block';
+                setTimeout(() => {
+                    detailsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+                }, 80);
+            }
+        }
+    }
+
+    function triggerBankGrid(inputEl) {
+        const card = inputEl.closest('.swipe-item');
+        const gridSection = card.querySelector('.grid-section-wrapper');
+        if (inputEl.value.toUpperCase().includes('ICICI')) {
+            gridSection.classList.remove('hidden');
+        } else {
+            gridSection.classList.add('hidden');
+        }
+    }
+
+    function autoTab(input) {
+        if (input.value.length >= input.maxLength) {
+            const card = input.closest('.swipe-item');
+            const inputs = Array.from(card.querySelectorAll('input:not([type="hidden"])'));
+            const index = inputs.indexOf(input);
+            if (index > -1 && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
+        }
+    }
+
+    function toggleVis(btn) {
+        const input = btn.parentElement.querySelector('input');
+        const icon = btn.querySelector('i');
+        input.type = (input.type === "password") ? "text" : "password";
+        icon.innerText = (input.type === "password") ? "visibility_off" : "visibility";
+    }
+
+    function toggleGrid(btn) {
+        const gridContainer = btn.parentElement.nextElementSibling;
+        const inputs = gridContainer.querySelectorAll('input');
+        const icon = btn.querySelector('i');
+        const isPass = inputs[0].type === "password";
+        inputs.forEach(input => input.type = isPass ? "text" : "password");
+        icon.innerText = isPass ? "visibility" : "visibility_off";
+    }
+
+    function formatCC(input) {
+        let v = input.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+        if (v.length > 16) v = v.substring(0, 16);
+        let parts = v.match(/.{1,4}/g);
+        if (parts) input.value = parts.join(' ');
+        
+        const cardEl = input.closest('.swipe-item');
+        cardEl.querySelector('.card-brand-badge').innerText = detectCardBrand(v);
+
+        if (v.length === 16) autoTab(input);
+    }
+
+    function formatExp(input) {
+        let v = input.value.replace(/\D/g, ''); 
+        if (v.length >= 2) input.value = v.substring(0, 2) + '/' + v.substring(2, 4);
+        else input.value = v;
+    }
+
+    // ---------------- ENCRYPTED PERSISTENT SAVE ----------------
+    async function save() {
+        if (!CURRENT_PIN) return;
+        
+        const list = Array.from(document.querySelectorAll('.swipe-item')).map(c => {
+            const isICICI = c.querySelector('.v-bank').value.toUpperCase().includes('ICICI');
+            const dataObj = {
+                bank: c.querySelector('.v-bank').value,
+                user: c.querySelector('.v-user').value, pass: c.querySelector('.v-pass').value,
+                sq: c.querySelector('.v-sq').value, sa: c.querySelector('.v-sa').value,
+                cc: c.querySelector('.v-cc').value, exp: c.querySelector('.v-exp').value,
+                cvv: c.querySelector('.v-cvv').value, ann: c.querySelector('.v-ann').value,
+                bill: c.querySelector('.v-bill').value, due: c.querySelector('.v-due').value,
+                gridA: isICICI ? c.querySelector('.v-grid-A').value : '',
+                gridB: isICICI ? c.querySelector('.v-grid-B').value : '',
+                gridC: isICICI ? c.querySelector('.v-grid-C').value : '',
+                gridD: isICICI ? c.querySelector('.v-grid-D').value : '',
+                gridE: isICICI ? c.querySelector('.v-grid-E').value : '',
+                gridF: isICICI ? c.querySelector('.v-grid-F').value : '',
+                gridG: isICICI ? c.querySelector('.v-grid-G').value : '',
+                gridH: isICICI ? c.querySelector('.v-grid-H').value : '',
+                gridI: isICICI ? c.querySelector('.v-grid-I').value : '',
+                gridJ: isICICI ? c.querySelector('.v-grid-J').value : '',
+                gridK: isICICI ? c.querySelector('.v-grid-K').value : '',
+                gridL: isICICI ? c.querySelector('.v-grid-L').value : '',
+                gridM: isICICI ? c.querySelector('.v-grid-M').value : '',
+                gridN: isICICI ? c.querySelector('.v-grid-N').value : '',
+                gridO: isICICI ? c.querySelector('.v-grid-O').value : '',
+                gridP: isICICI ? c.querySelector('.v-grid-P').value : ''
+            };
+            checkAlertBadges(c, dataObj);
+            return dataObj;
+        });
+
+        const encryptedStr = await encryptPayload(list, CURRENT_PIN);
+        localStorage.setItem(DB_KEY, encryptedStr);
+    }
+
+    // ---------------- BACKUP & RESTORE ENGINE ----------------
+    async function exportData() {
+        await save();
+        const rawEncrypted = localStorage.getItem(DB_KEY);
+        if (!rawEncrypted) {
+            alert("No data to backup!");
+            return;
+        }
+
+        const dataObj = await decryptPayload(rawEncrypted, CURRENT_PIN);
+        const dataStr = JSON.stringify(dataObj, null, 2);
+
+        if ('showSaveFilePicker' in window) {
+            try {
+                if (!fileHandle) {
+                    const defaultName = localStorage.getItem(FILE_NAME_KEY) || ("Vault_Backup_" + new Date().toISOString().slice(0,10) + ".json");
+                    fileHandle = await window.showSaveFilePicker({
+                        suggestedName: defaultName,
+                        types: [{ description: 'JSON Backup', accept: {'application/json': ['.json']} }],
+                    });
+                    localStorage.setItem(FILE_NAME_KEY, fileHandle.name);
+                } else {
+                    const options = { mode: 'readwrite' };
+                    if ((await fileHandle.queryPermission(options)) !== 'granted') {
+                        if ((await fileHandle.requestPermission(options)) !== 'granted') {
+                            fileHandle = null;
+                            return exportData();
+                        }
+                    }
+                }
+
+                const writable = await fileHandle.createWritable();
+                await writable.write(dataStr);
+                await writable.close();
+                alert(`Backup exported successfully to "${fileHandle.name}"!`);
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                fileHandle = null;
+            }
+        }
+
+        let savedFileName = localStorage.getItem(FILE_NAME_KEY);
+        if (!savedFileName) {
+            const defaultName = "Vault_Backup_" + new Date().toISOString().slice(0,10);
+            savedFileName = prompt("Enter filename to save your backup:", defaultName);
+            if (savedFileName === null) return; 
+            if (savedFileName.trim() === "") savedFileName = "Vault_Backup";
+            if (!savedFileName.endsWith(".json")) savedFileName += ".json";
+            localStorage.setItem(FILE_NAME_KEY, savedFileName);
+        }
+
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = savedFileName; document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+        alert(`Backup exported successfully as "${savedFileName}"!`);
+    }
+
+    function importData(event) {
+        if (!event.target.files[0]) return;
+        if (!confirm("Restoring a backup will REPLACE all cards currently in your vault. Continue?")) {
+            event.target.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = async (e) => { 
+            try {
+                const parsed = JSON.parse(e.target.result); 
+                if (Array.isArray(parsed)) {
+                    const encryptedStr = await encryptPayload(parsed, CURRENT_PIN);
+                    localStorage.setItem(DB_KEY, encryptedStr); 
+                    await init();
+                    alert("Vault restored successfully!");
+                } else {
+                    alert("Invalid Backup Structure");
+                }
+            } catch(err) { alert("Invalid JSON Backup File"); }
+            event.target.value = '';
+        };
+        reader.readAsText(event.target.files[0]);
+    }
+</script>
+</body>
+</html>
