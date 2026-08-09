@@ -2,17 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Added viewport-fit=cover for iPhone 15 Pro / Dynamic Island / Safe Areas -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Vault Pro - Complete Secure Tracker</title>
     
-    <!-- PWA Meta Tags for iOS / Android -->
+    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Vault Pro">
     <meta name="theme-color" content="#1e293b">
-    <link rel="apple-touch-icon" id="apple-icon" href="">
-    <link rel="manifest" id="pwa-manifest" href="">
+    
+    <!-- Link to external PWA files -->
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2913/2913584.png">
+    <link rel="manifest" href="./manifest.json">
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <style>
@@ -20,7 +21,6 @@
         
         * { box-sizing: border-box; }
         
-        /* Added safe-area-inset for modern notch/island phones */
         body { 
             font-family: 'Inter', system-ui, sans-serif; 
             background: var(--bg); 
@@ -37,7 +37,6 @@
         #recovery-display { display: none; background: #0f172a; padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px dashed var(--success); }
         .code-text { font-family: monospace; color: var(--success); font-weight: bold; font-size: 14px; word-break: break-all; }
 
-        /* Dynamic Island / Top Notch Safe Area */
         .top-dash { 
             position: sticky; top: 0; z-index: 100; background: var(--secondary); color: white; 
             padding: max(16px, env(safe-area-inset-top)) 20px 16px; 
@@ -74,7 +73,6 @@
         
         .input-group-card { display: flex; align-items: center; width: 100%; margin-bottom: 6px; }
         
-        /* Fixed: Responsive clamp to prevent overlap on narrow mobile screens */
         .v-cc { font-size: clamp(14px, 4vw, 17px) !important; letter-spacing: 1px !important; width: 100%; min-width: 0; flex: 1; }
         
         .card-bottom { display: flex; justify-content: space-between; align-items: flex-end; width: 75%; }
@@ -99,7 +97,6 @@
         .physical-card .toggle-btn { color: rgba(255,255,255,0.7); }
         .physical-card .copy-btn { color: rgba(255,255,255,0.9); }
         
-        /* Bottom swipe bar Safe Area adjustments */
         .bottom-actions { 
             position: fixed; 
             bottom: 0; 
@@ -223,7 +220,6 @@
     let inactivityTimer = null;
     let CURRENT_PIN = "";
 
-    // ---------------- SECURITY & ENCRYPTION ENGINE ----------------
     async function deriveKey(pin) {
         const enc = new TextEncoder();
         const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey']);
@@ -255,22 +251,19 @@
         }
     }
 
-    // ---------------- DEBOUNCE PERFORMANCE FIX ----------------
-    // This prevents the UI from freezing by waiting until typing pauses before heavy encryption runs
     let saveTimeout = null;
     function debouncedSave() {
         if(saveTimeout) clearTimeout(saveTimeout);
         saveTimeout = setTimeout(() => {
             save();
-        }, 600); // Wait 600ms after last keystroke to run heavy encryption
+        }, 600); 
     }
 
-    // ---------------- INACTIVITY TIMER & AUTO-LOCK ----------------
     function resetInactivityTimer() {
         clearTimeout(inactivityTimer);
         inactivityTimer = setTimeout(() => {
             lockApp();
-        }, 3 * 60 * 1000); // Auto Lock after 3 Minutes of Inactivity
+        }, 3 * 60 * 1000); 
     }
 
     ['mousemove', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
@@ -288,7 +281,6 @@
         document.getElementById('pin-overlay').style.display = 'flex';
     }
 
-    // ---------------- PIN & AUTHENTICATION FLOW ----------------
     document.getElementById('pin-field').addEventListener('input', async function(e) {
         this.value = this.value.replace(/[^0-9]/g, '');
         if(this.value.length === 4) {
@@ -348,7 +340,6 @@
         }
     }
 
-    // ---------------- CARD BRAND DETECTION & BADGES ----------------
     function detectCardBrand(number) {
         const clean = number.replace(/\s+/g, '');
         if (/^4/.test(clean)) return 'VISA';
@@ -386,7 +377,6 @@
         }
     }
 
-    // ---------------- CLIPBOARD HELPER ----------------
     function copyToClipboard(event, value, label) {
         event.stopPropagation();
         if (!value) return;
@@ -405,8 +395,6 @@
         setTimeout(() => { toast.style.display = 'none'; }, 2500);
     }
 
-    // ---------------- CARD DOM RENDERER ----------------
-    // Swapped save() with debouncedSave() to fix typing lag
     function addNew(data = {}) {
         const gridLetters = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P'];
         const cardCount = document.querySelectorAll('.swipe-item').length;
@@ -527,7 +515,6 @@
         document.getElementById('searchBar').value = "";
     }
 
-    // ---------------- SEARCH, FILTER & INTERACTIONS ----------------
     function filterCards() {
         const query = document.getElementById('searchBar').value.toLowerCase().trim();
         const items = document.querySelectorAll('.swipe-item');
@@ -657,7 +644,6 @@
         else input.value = v;
     }
 
-    // ---------------- ENCRYPTED PERSISTENT SAVE ----------------
     async function save() {
         if (!CURRENT_PIN) return;
         
@@ -695,7 +681,6 @@
         localStorage.setItem(DB_KEY, encryptedStr);
     }
 
-    // ---------------- BACKUP & RESTORE ENGINE ----------------
     async function exportData() {
         await save();
         const rawEncrypted = localStorage.getItem(DB_KEY);
@@ -773,44 +758,14 @@
         reader.readAsText(event.target.files[0]);
     }
 
-    // ---------------- SINGLE-FILE PWA INJECTION ----------------
-    // Generates a base64 app icon, manifest, and service worker so this can remain a single HTML file
-    (function initPWA() {
-        const appName = "Vault Pro";
-        const themeColor = "#1e293b";
-        
-        // Base64 SVG Icon (Shield with a 'V')
-        const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="${themeColor}"/><text x="256" y="340" font-size="280" fill="#6366f1" text-anchor="middle" font-family="sans-serif" font-weight="bold">V</text></svg>`;
-        const iconDataUrl = "data:image/svg+xml;base64," + btoa(svgIcon);
-        
-        document.getElementById('apple-icon').href = iconDataUrl;
-
-        // Generate and inject PWA Manifest
-        const manifest = {
-            name: appName,
-            short_name: "Vault",
-            display: "standalone",
-            start_url: ".",
-            background_color: themeColor,
-            theme_color: themeColor,
-            icons: [{ src: iconDataUrl, sizes: "512x512", type: "image/svg+xml" }]
-        };
-        const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-        document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
-
-        // Generate and register an inline Service Worker for offline support/installation
-        if ('serviceWorker' in navigator) {
-            const swCode = `
-                self.addEventListener('install', (e) => { self.skipWaiting(); });
-                self.addEventListener('activate', (e) => { self.clients.claim(); });
-                self.addEventListener('fetch', (e) => {
-                    e.respondWith(fetch(e.request).catch(() => new Response('Offline Mode Active', { status: 200 })));
-                });
-            `;
-            const swBlob = new Blob([swCode], { type: 'application/javascript' });
-            navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(err => console.log('PWA SW Registration failed', err));
-        }
-    })();
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('SW Registered!', reg))
+                .catch(err => console.error('SW Failed!', err));
+        });
+    }
 </script>
 </body>
 </html>
